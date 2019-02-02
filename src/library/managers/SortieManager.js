@@ -1048,6 +1048,26 @@ Stores and manages states and functions during sortie of fleets (including PvP b
 			}
 			stats.type = gearMaster.api_type[3];
 			return stats;
+		},
+
+		queueEvents :function(SE) {
+
+		},
+
+		resolveEvents :function() {
+			let deferredEvents = [];
+			const thisNode = this.currentNode();
+			const pendingEvents = thisNode.queuedEvents || [];
+			for (let i = 0; i < pendingEvents.length; i++) {
+				const event = pendingEvents[i];
+				if (event !== false) {
+					thisNode.updateHP(event);
+				} else {
+					deferredEvents = pendingEvents.slice(i + 1);
+					break;
+				}
+			}
+			thisNode.queuedEvents = deferredEvents;
 		}
 		
 	};

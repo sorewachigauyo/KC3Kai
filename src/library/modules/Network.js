@@ -255,6 +255,11 @@ Listens to network history and triggers callback if game events happen
 				})).execute();
 				// console.debug("Battle end SE detected, focus on game tab requested");
 			}
+			// If request is a sound effect of explosion mid-battle, update ship HPs
+			const explosionSE = [102, 103, 104];
+			if(ConfigManager.battle_live_update && KC3Network.battleEvent.entered && explosionSE.some(SE => requestUrl.includes(`/resources/se/${SE}.`))) {
+				KC3SortieManager.resolveEvents();
+			}
 			
 			// Overlay subtitles
 			KC3Network.showSubtitle(har);

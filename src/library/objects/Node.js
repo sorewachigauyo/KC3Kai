@@ -605,6 +605,7 @@ Used by SortieManager
 
 			const result = KC3BattlePrediction.analyzeBattle(battleData, dameConCode, { player, enemy, time });
 			this.predictedFleetsDay = result.fleets;
+			this.initalisePhases();
 			this.battleLog = result.log;
 			if (KC3Node.debugPrediction()) {
 				console.debug(`Node ${this.letter} predicted for ${player} vs ${enemy}`, result);
@@ -886,6 +887,7 @@ Used by SortieManager
 			})();
 			const result = KC3BattlePrediction.analyzeBattle(nightData, dameConCode, { player, enemy, time });
 			this.predictedFleetsNight = result.fleets;
+			this.initalisePhases();
 			this.battleLog = result.log;
 			if (KC3Node.debugPrediction()) {
 				console.debug(`Node ${this.letter} predicted yasen ${player} vs ${enemy}`, result);
@@ -2277,6 +2279,126 @@ Used by SortieManager
 			});
 		}
 		return tooltips;
+	};
+
+	KC3Node.prototype.initalisePhases = function() {
+		this.phases = [];
+		this.queuedEvents = [];
+		this.attackNum = 0;
+		this.phaseNum = 0;
+		// No new phases for day to night, just to reset attackNum
+		const apiData = this.battleNight || this.battleDay;
+		const keys = Object.keys(apiData);
+		let phaseOrdering = ["api_n_support_info", "api_air_base_injection", "api_injection_kouku", "api_air_base_attack", "api_kouku", "api_kouku2", "api_support_info", "api_opening_atack", "api_raigeki"];
+		// Support comes before kouku in ntd
+		if (this.isNightToDay) {
+			phaseOrdering = ["api_n_support_info", "api_air_base_injection", "api_injection_kouku", "api_air_base_attack", "api_support_info", "api_kouku", "api_kouku2", "api_opening_atack", "api_raigeki"];
+		}
+		// Add relevant phases if avaliable
+		phaseOrdering.forEach(key => {
+			if (keys.includes(key)) {
+				if (key !== "api_air_base_attack") {
+					this.phases.push(key);
+				}
+				else {
+					const airBaseData = apiData[key];
+					const waves = Object.keys(airBaseData);
+					waves.forEach(wave => this.phases.push(key + "." + wave));
+				}
+			}
+		});
+	};
+
+	KC3Node.prototype.advanceAerialPhase = function() {
+		const phase = this.phases[this.phaseNum];
+		const bomberPhase = Object.getSafePath(this.battleDay, phase + ".api_stage3");
+		let attacks = 0;
+		const reducer = array => array.reduce((a,b) => a + (b > 0 ? 1 : 0));
+		if (bomberPhase) {
+			["api_edam", "api_fdam"].forEach(path => attacks += reducer(bomberPhase[path] || []));
+		}
+		const bomberPhaseCombined = Object.getSafePath(this.battleDay, phase + ".api_stage3_combined");
+		if (bomberPhaseCombined) {
+			["api_edam", "api_fdam"].forEach(path => attacks += reducer(bomberPhaseCombined[path] || []));
+		}
+		for (let i = 0; i < attacks; i++) {
+			const currentAttack = this.battleLog[this.attackNum + i];
+			this.queuedEvents.push(currentAttack);
+		}
+		this.attackNum += attacks;
+		this.phaseNum++;
+	};
+
+	KC3Node.prototype.advanceShellingAttack = function() {
+		const attackNumber = (this.attackNumber || 0);
+		const attack = this.battleLog[attackNumber];
+		if (!(attack.cutin === 2 || attack.ncutin === 1)) {
+			this.queuedEvents.push(attack);
+		} else {
+			for (let i = 0; i < 2; i++) {
+				const attackTemp = Object.assign({}, attack);
+				attackTemp.damage = attackTemp.damage[i];
+				this.queuedEvents.push(attackTemp);
+				this.queuedEvents.push(false);
+			}
+		}
+		this.attackNumber = attackNumber + 1;
+	};
+
+	KC3Node.prototype.advanceTorpedoPhase = function() {
+		const phase  = this.phases[this.phaseNum];
+		const torpedoPhase = Object.getSafePath(this.battleDay, phase) || Object.getSafePath(this.battleNight, phase);
+		let attacks = 0;
+		if (torpedoPhase) {
+			const reducer = array => array.reduce((a,b) => a + (b > -1 ? 1 : 0));
+			["api_erai", "api_frai"].forEach(path => attacks += reducer(torpedoPhase[path] || []));
+		}
+		for (let i = 0; i < attacks; i++) {
+			const currentAttack = this.battleLog[this.attackNum + i];
+			this.queuedEvents.push(currentAttack);
+		}
+		this.attackNum += attacks;
+		this.phaseNum++;
+	};
+
+	KC3Node.prototype.advanceSupportPhase = function() {
+		const battleData = this.battleDay || this.battleNight;
+		if (battleData) {
+			const supportFlag = battleData.api_support_flag || battleData.api_n_support_flag;
+			const phase = this.phases[this.phaseNum];
+			if (supportFlag === 1 || supportFlag === 4) {
+				this.phases[this.phaseNum] = phase + ".api_support_airatack";
+				this.advanceAerialPhase();
+			}
+			else {
+				let attacks = 0;
+				const apiData = Object.getSafePath(battleData, phase + ".api_support_hourai");
+				if (apiData) {
+					attacks = (apiData.api_damage || []).reduce((a,b) => a + (b > 0 ? b : 0)) || 0;
+					for (let i = 0; i < attacks; i++) {
+						const currentAttack = this.battleLog[this.attackNum + i];
+						this.queuedEvents.push(currentAttack);
+					}
+					this.attackNum += attacks;
+				}
+				this.phaseNum++;
+			}
+		}
+	};
+
+	KC3Node.prototype.updateHP = function(attack) {
+		let target = attack.defender.position;
+		if (attack.defender.side === 'player' && (KC3SortieManager.isOnSortie() || KC3SortieManager.isPvP())) {
+			const isEscort = target > 5 && this.playerCombined;
+			const fleet = !isEscort ? KC3SortieManager.fleetSent - 1 : 1;
+			if (isEscort) { target -= 6; }
+			const ship = PlayerManager.fleets[fleet].ship(target);
+			ship.afterHp[0] -= Math.floor(Array.isArray(target.damage) ? target.damage.reduce((a,b) => a + (b > 0 ? b : 0)) 
+				: target.damage);
+		}
+		// Still working out how to handle enemy HPs
+		else if (attack.defender.side === 'enemy') {
+		}
 	};
 	
 	KC3Node.prototype.saveEnemyEncounterInfo = function(battleData, updatedName, baseExp, isAirBaseRaid){
