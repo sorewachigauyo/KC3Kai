@@ -9,6 +9,7 @@ QUnit.module('modules > BattlePrediction > phases > Raigeki', function () {
       const json = {
         api_frai: 'defender index',
         api_fydam: 'damage',
+        api_fcl: 'accuracy',
       };
 
       const result = this.subject(json, 'attacker index');
@@ -17,6 +18,7 @@ QUnit.module('modules > BattlePrediction > phases > Raigeki', function () {
         damage: 'damage',
         defender: { side: Side.ENEMY, position: 'defender index' },
         attacker: { side: Side.PLAYER, position: 'attacker index' },
+        info: { acc: 'accuracy', damage: 'damage', phase: "raigeki"},
       });
     });
   });
@@ -28,6 +30,7 @@ QUnit.module('modules > BattlePrediction > phases > Raigeki', function () {
       const json = {
         api_erai: 'defender index',
         api_eydam: 'damage',
+        api_ecl: 'accuracy',
       };
 
       const result = this.subject(json, 'attacker index');
@@ -36,6 +39,7 @@ QUnit.module('modules > BattlePrediction > phases > Raigeki', function () {
         damage: 'damage',
         defender: { side: Side.PLAYER, position: 'defender index' },
         attacker: { side: Side.ENEMY, position: 'attacker index' },
+        info: { acc: 'accuracy', damage: 'damage', phase: "raigeki"},
       });
     });
   });

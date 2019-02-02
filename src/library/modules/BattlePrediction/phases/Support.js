@@ -41,6 +41,7 @@
   Support.parseJson = ({ api_damage }, index) => ({
     damage: api_damage,
     defender: { side: Side.ENEMY, position: index },
+    info: { phase: "support", damage: api_damage }
   });
 
   Support.isDamagingAttack = ({ damage }) => damage > 0;

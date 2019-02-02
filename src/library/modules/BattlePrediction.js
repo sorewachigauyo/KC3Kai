@@ -441,7 +441,8 @@
         [Side.PLAYER]: { main: playerMain, escort: playerEscort },
         [Side.ENEMY]: { main: enemyMain, escort: enemyEscort },
         // No escort fleet found yet for NPC friend fleet support
-        [Side.FRIEND]: { main: friendMain, escort: [] }
+        [Side.FRIEND]: { main: friendMain, escort: [] },
+        log: [],
       }),
       over(Side.PLAYER, map(installDamecons(playerDamecons)))
     )(battleData);
@@ -450,6 +451,8 @@
   Fleets.simulateAttack = (fleets, { damage, defender, attacker, info }) => {
     const { getPath } = KC3BattlePrediction.fleets;
     const { dealDamage, takeDamage } = KC3BattlePrediction.fleets.ship;
+
+    if (info) { info.attacker = attacker; info.defender = defender; fleets.log.push(info); }
 
     return pipe(
       over(getPath(fleets, defender), takeDamage(damage, info)),
@@ -463,6 +466,7 @@
 
   Fleets.formatFleets = (fleets) => {
     const { formatShip } = KC3BattlePrediction.fleets.ship;
+    const fleetsCopy = Object.assign({}, fleets, { log: [] });
     return pipe(
       mapShips(formatShip),
       ({ [Side.PLAYER]: player, [Side.ENEMY]: enemy, [Side.FRIEND]: friend }) => ({
@@ -473,7 +477,7 @@
         friendMain: friend.main,
         friendEscort: friend.escort,
       })
-    )(fleets);
+    )(fleetsCopy);
   };
 
   /*--------------------------------------------------------*/
@@ -599,6 +603,7 @@
     return {
       fleets: result,
       isPlayerNoDamage: isPlayerNoDamage(initial, result),
+      log: resultFleets.log,
     };
   };
 
@@ -838,6 +843,7 @@
     cutin: api_at_type,
     ncutin: api_sp_list,
     target: (index === -1 ? api_df_list : [api_df_list[index]]),
+    phase: "hougeki",
   });
 
   /*--------------------------------------------------------*/
@@ -851,6 +857,8 @@
   const COMBINED_FLEET_MAIN_ALIGN = 6;
   const Kouku = {};
   const { pipe, juxt, flatten, map, filter, Side } = KC3BattlePrediction;
+  const KOUKU_PLAYER = ["api_fdam", "api_fcl_flag", "api_fbak_flag", "api_frai_flag"];
+  const KOUKU_ENEMY = ["api_edam", "api_ecl_flag", "api_ebak_flag", "api_erai_flag"];
   /*--------------------------------------------------------*/
   /* ----------------------[ PUBLIC ]---------------------- */
   /*--------------------------------------------------------*/
@@ -870,6 +878,23 @@
       flatten,
       filter(isDamagingAttack),
       map(createAttack)
+    )(battleData);
+  };
+
+  Kouku.logKouku = (battleData) => {
+    const { padDamageArray, extractPlayerInfo, extractEnemyInfo, isValidAttack } = KC3BattlePrediction.battle.phases.kouku;
+    return pipe(
+      juxt([
+        extractPlayerInfo('api_stage3'),
+        extractPlayerInfo('api_stage3_combined'),
+        extractEnemyInfo('api_stage3'),
+        extractEnemyInfo('api_stage3_combined'),
+      ]),
+      map(padDamageArray),
+      ([playerMain, playerEscort, enemyMain, enemyEscort]) => ({
+        player: ([].concat(playerMain, playerEscort)).filter(isValidAttack),
+        enemy: ([].concat(enemyMain, enemyEscort)).filter(isValidAttack),
+      })
     )(battleData);
   };
 
@@ -905,11 +930,47 @@
       : damageArray);
 
   Kouku.parsePlayerJson = ({ api_fdam }) => api_fdam.map(
-    (damage, position) => ({ damage, defender: { side: Side.PLAYER, position } })
+    (damage, position) => ({ damage, defender: { side: Side.PLAYER, position }, info: { phase: "kouku", damage: damage }})
   );
   Kouku.parseEnemyJson = ({ api_edam }) => api_edam.map(
-    (damage, position) => ({ damage, defender: { side: Side.ENEMY, position } })
+    (damage, position) => ({ damage, defender: { side: Side.ENEMY, position }, info: { phase: "kouku", damage: damage }})
   );
+ Kouku.extractPlayerInfo = stage_name => battleData => {
+    const { extractFromJson } = KC3BattlePrediction.battle.phases;
+    const { parsePlayerInfo } = KC3BattlePrediction.battle.phases.kouku;
+    if (battleData[stage_name] && battleData[stage_name][KOUKU_PLAYER[0]]) {
+      return pipe(
+        extractFromJson(KOUKU_PLAYER), 
+        map(parsePlayerInfo)
+      )(battleData[stage_name]);
+    }
+    return [];
+  };
+  Kouku.parsePlayerInfo = ({ api_fdam, api_fcl_flag, api_fbak_flag, api_frai_flag }) =>
+    ({ damage: api_fdam, acc: api_fcl_flag, rai_flag: api_frai_flag, bak_flag: api_fbak_flag, defender: { side: Side.PLAYER } });
+
+  Kouku.extractEnemyInfo = stage_name => battleData => {
+    const { extractFromJson } = KC3BattlePrediction.battle.phases;
+    const { parseEnemyInfo } = KC3BattlePrediction.battle.phases.kouku;
+    if (battleData[stage_name] && battleData[stage_name][KOUKU_ENEMY[0]]) {
+      return pipe(
+        extractFromJson(KOUKU_ENEMY),
+        map(parseEnemyInfo)
+      )(battleData[stage_name]);
+    }
+    return [];
+  };
+  Kouku.parseEnemyInfo = ({ api_edam, api_ecl_flag, api_ebak_flag, api_erai_flag }) =>
+    ({ damage: api_edam, acc: api_ecl_flag, rai_flag: api_erai_flag, bak_flag: api_ebak_flag, defender: { side: Side.ENEMY } });
+
+  Kouku.isDamagingAttack = ({ damage }) => damage > 0;
+  Kouku.isValidAttack = (attack, position) => {
+    if (attack) {
+      attack.defender.position = position;
+      attack.phase = "kouku";
+      return attack.rai_flag || attack.bak_flag;
+    }
+  };
 
   Kouku.isDamagingAttack = ({ damage }) => damage > 0;
 
@@ -923,8 +984,8 @@
 (function () {
   const Raigeki = {};
   const { pipe, juxt, flatten, map, filter, Side } = KC3BattlePrediction;
-  const RAIGEKI_PLAYER = ['api_frai', 'api_fydam'];
-  const RAIGEKI_ENEMY = ['api_erai', 'api_eydam'];
+  const RAIGEKI_PLAYER = ['api_frai', 'api_fydam', 'api_fcl'];
+  const RAIGEKI_ENEMY = ['api_erai', 'api_eydam', 'api_ecl'];
 
   /*--------------------------------------------------------*/
   /* --------------------[ PUBLIC API ]-------------------- */
@@ -963,15 +1024,17 @@
     )(battleData);
   };
 
-  Raigeki.parsePlayerJson = ({ api_frai, api_fydam }, index) => ({
+  Raigeki.parsePlayerJson = ({ api_frai, api_fydam, api_fcl }, index) => ({
     damage: api_fydam,
     defender: { side: Side.ENEMY, position: api_frai },
     attacker: { side: Side.PLAYER, position: index },
+    info: { acc: api_fcl, damage: api_fydam, phase: "raigeki" }
   });
-  Raigeki.parseEnemyJson = ({ api_erai, api_eydam }, index) => ({
+  Raigeki.parseEnemyJson = ({ api_erai, api_eydam, api_ecl }, index) => ({
     damage: api_eydam,
     defender: { side: Side.PLAYER, position: api_erai },
     attacker: { side: Side.ENEMY, position: index },
+    info: { acc: api_ecl, damage: api_eydam, phase: "raigeki" }
   });
 
   Raigeki.isRealAttack = ({ defender }) => defender.position !== -1;
@@ -1026,6 +1089,7 @@
   Support.parseJson = ({ api_damage }, index) => ({
     damage: api_damage,
     defender: { side: Side.ENEMY, position: index },
+    info: { phase: "support", damage: api_damage }
   });
 
   Support.isDamagingAttack = ({ damage }) => damage > 0;
@@ -1329,7 +1393,7 @@
   Ship.installDamecon = (ship, damecon = 0) => Object.assign({}, ship, { damecon });
 
   Ship.dealDamage = (damage, info) => ship => {
-    if (info) { ship.attacks.push(Object.assign({}, info, { hp: ship.hp })); }
+    if (info) { info.hp = ship.hp; ship.attacks.push(info); }
 
     return Object.assign({}, ship, { damageDealt: ship.damageDealt + damage});
   };

@@ -12,6 +12,7 @@
     return {
       fleets: result,
       isPlayerNoDamage: isPlayerNoDamage(initial, result),
+      log: resultFleets.log,
     };
   };
 

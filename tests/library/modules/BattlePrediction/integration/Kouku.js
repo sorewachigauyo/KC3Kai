@@ -15,9 +15,9 @@ QUnit.module('modules > BattlePrediction > phases > Kouku', () => {
       const result = this.subject(json);
 
       assert.deepEqual(result, [
-        createAttack({ damage: 13, defender: { side: Side.PLAYER, position: 0 } }),
-        createAttack({ damage: 43, defender: { side: Side.PLAYER, position: 6 } }),
-        createAttack({ damage: 26, defender: { side: Side.ENEMY, position: 5 } }),
+        createAttack({ damage: 13, defender: { side: Side.PLAYER, position: 0 }, info: { phase: "kouku", damage: 13 } }),
+        createAttack({ damage: 43, defender: { side: Side.PLAYER, position: 6 }, info: { phase: "kouku", damage: 43 } }),
+        createAttack({ damage: 26, defender: { side: Side.ENEMY, position: 5 }, info: { phase: "kouku", damage: 26.1 } }),
       ]);
     });
 
@@ -36,9 +36,9 @@ QUnit.module('modules > BattlePrediction > phases > Kouku', () => {
       const result = this.subject(json);
 
       assert.deepEqual(result, [
-        createAttack({ damage: 34, defender: { side: Side.PLAYER, position: 6 } }),
-        createAttack({ damage: 47, defender: { side: Side.ENEMY, position: 0 } }),
-        createAttack({ damage: 12, defender: { side: Side.ENEMY, position: 6 } }),
+        createAttack({ damage: 34, defender: { side: Side.PLAYER, position: 6 }, info: { phase: "kouku", damage: 34 } }),
+        createAttack({ damage: 47, defender: { side: Side.ENEMY, position: 0 }, info: { phase: "kouku", damage: 47 } }),
+        createAttack({ damage: 12, defender: { side: Side.ENEMY, position: 6 }, info: { phase: "kouku", damage: 12 } }),
       ]);
     });
 
@@ -56,9 +56,9 @@ QUnit.module('modules > BattlePrediction > phases > Kouku', () => {
       const result = this.subject(json);
 
       assert.deepEqual(result, [
-        createAttack({ damage: 57, defender: { side: Side.PLAYER, position: 0 } }),
-        createAttack({ damage: 7, defender: { side: Side.PLAYER, position: 1 } }),
-        createAttack({ damage: 17, defender: { side: Side.PLAYER, position: 6 } }),
+        createAttack({ damage: 57, defender: { side: Side.PLAYER, position: 0 }, info: { phase: "kouku", damage: 57 } }),
+        createAttack({ damage: 7, defender: { side: Side.PLAYER, position: 1 }, info: { phase: "kouku", damage: 7 } }),
+        createAttack({ damage: 17, defender: { side: Side.PLAYER, position: 6 }, info: { phase: "kouku", damage: 17 } }),
       ]);
     });
   });

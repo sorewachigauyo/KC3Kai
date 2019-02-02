@@ -605,6 +605,7 @@ Used by SortieManager
 
 			const result = KC3BattlePrediction.analyzeBattle(battleData, dameConCode, { player, enemy, time });
 			this.predictedFleetsDay = result.fleets;
+			this.battleLog = result.log;
 			if (KC3Node.debugPrediction()) {
 				console.debug(`Node ${this.letter} predicted for ${player} vs ${enemy}`, result);
 			}
@@ -885,6 +886,7 @@ Used by SortieManager
 			})();
 			const result = KC3BattlePrediction.analyzeBattle(nightData, dameConCode, { player, enemy, time });
 			this.predictedFleetsNight = result.fleets;
+			this.battleLog = result.log;
 			if (KC3Node.debugPrediction()) {
 				console.debug(`Node ${this.letter} predicted yasen ${player} vs ${enemy}`, result);
 			}
@@ -2061,6 +2063,8 @@ Used by SortieManager
 			if (!attacks || !attacks.length) { return; }
 			if (ship.isDummy()) { return; }
 			attacks.forEach(attack => {
+				if (attack.phase !== "hougeki") { return; }
+
 				// BATTLE CONDITIONS
 				const damage = attack.damage,
 					cutin = attack.cutin >= 0 ? attack.cutin : attack.ncutin,

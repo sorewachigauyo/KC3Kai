@@ -23,7 +23,8 @@
         [Side.PLAYER]: { main: playerMain, escort: playerEscort },
         [Side.ENEMY]: { main: enemyMain, escort: enemyEscort },
         // No escort fleet found yet for NPC friend fleet support
-        [Side.FRIEND]: { main: friendMain, escort: [] }
+        [Side.FRIEND]: { main: friendMain, escort: [] },
+        log: [],
       }),
       over(Side.PLAYER, map(installDamecons(playerDamecons)))
     )(battleData);
@@ -32,6 +33,8 @@
   Fleets.simulateAttack = (fleets, { damage, defender, attacker, info }) => {
     const { getPath } = KC3BattlePrediction.fleets;
     const { dealDamage, takeDamage } = KC3BattlePrediction.fleets.ship;
+
+    if (info) { info.attacker = attacker; info.defender = defender; fleets.log.push(info); }
 
     return pipe(
       over(getPath(fleets, defender), takeDamage(damage, info)),
@@ -45,6 +48,7 @@
 
   Fleets.formatFleets = (fleets) => {
     const { formatShip } = KC3BattlePrediction.fleets.ship;
+    const fleetsCopy = Object.assign({}, fleets, { log: [] });
     return pipe(
       mapShips(formatShip),
       ({ [Side.PLAYER]: player, [Side.ENEMY]: enemy, [Side.FRIEND]: friend }) => ({
@@ -55,7 +59,7 @@
         friendMain: friend.main,
         friendEscort: friend.escort,
       })
-    )(fleets);
+    )(fleetsCopy);
   };
 
   /*--------------------------------------------------------*/

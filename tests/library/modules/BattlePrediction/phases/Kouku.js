@@ -69,9 +69,9 @@ QUnit.module('modules > BattlePrediction > phases > Kouku', function () {
       const result = this.subject(json);
 
       assert.deepEqual(result, [
-        { damage: 13, defender: { side: Side.PLAYER, position: 0 } },
-        { damage: 31, defender: { side: Side.PLAYER, position: 1 } },
-        { damage: 15, defender: { side: Side.PLAYER, position: 2 } },
+        { damage: 13, defender: { side: Side.PLAYER, position: 0 }, info: { phase: "kouku", damage: 13 } },
+        { damage: 31, defender: { side: Side.PLAYER, position: 1 }, info: { phase: "kouku", damage: 31 } },
+        { damage: 15, defender: { side: Side.PLAYER, position: 2 }, info: { phase: "kouku", damage: 15 } },
       ]);
     });
   });
@@ -85,9 +85,9 @@ QUnit.module('modules > BattlePrediction > phases > Kouku', function () {
       const result = this.subject(json);
 
       assert.deepEqual(result, [
-        { damage: 54, defender: { side: Side.ENEMY, position: 0 } },
-        { damage: 0, defender: { side: Side.ENEMY, position: 1 } },
-        { damage: 7, defender: { side: Side.ENEMY, position: 2 } },
+        { damage: 54, defender: { side: Side.ENEMY, position: 0 }, info: { phase: "kouku", damage: 54 } },
+        { damage: 0, defender: { side: Side.ENEMY, position: 1 }, info: { phase: "kouku", damage: 0 } },
+        { damage: 7, defender: { side: Side.ENEMY, position: 2 }, info: { phase: "kouku", damage: 7 } },
       ]);
     });
   });

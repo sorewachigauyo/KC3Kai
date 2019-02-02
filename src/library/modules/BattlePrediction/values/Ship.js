@@ -10,7 +10,7 @@
   Ship.installDamecon = (ship, damecon = 0) => Object.assign({}, ship, { damecon });
 
   Ship.dealDamage = (damage, info) => ship => {
-    if (info) { ship.attacks.push(Object.assign({}, info, { hp: ship.hp })); }
+    if (info) { info.hp = ship.hp; ship.attacks.push(info); }
 
     return Object.assign({}, ship, { damageDealt: ship.damageDealt + damage});
   };

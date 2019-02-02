@@ -12,9 +12,9 @@ QUnit.module('modules > BattlePrediction > phases > Support', {
     const result = this.subject(json);
 
     assert.deepEqual(result, [
-      createAttack({ damage: 11, defender: { side: Side.ENEMY, position: 0 } }),
-      createAttack({ damage: 39, defender: { side: Side.ENEMY, position: 4 } }),
-      createAttack({ damage: 21, defender: { side: Side.ENEMY, position: 10 } }),
+      createAttack({ damage: 11, defender: { side: Side.ENEMY, position: 0 }, info: { phase: "support", damage: 11 } }),
+      createAttack({ damage: 39, defender: { side: Side.ENEMY, position: 4 }, info: { phase: "support", damage: 39.1 } }),
+      createAttack({ damage: 21, defender: { side: Side.ENEMY, position: 10 }, info: { phase: "support", damage: 21 } }),
     ]);
   });
 
@@ -30,8 +30,8 @@ QUnit.module('modules > BattlePrediction > phases > Support', {
     const result = this.subject(json);
 
     assert.deepEqual(result, [
-      createAttack({ damage: 47, defender: { side: Side.ENEMY, position: 0 } }),
-      createAttack({ damage: 12, defender: { side: Side.ENEMY, position: 6 } }),
+      createAttack({ damage: 47, defender: { side: Side.ENEMY, position: 0 }, info: { phase: "kouku", damage: 47 } }),
+      createAttack({ damage: 12, defender: { side: Side.ENEMY, position: 6 }, info: { phase: "kouku", damage: 12 } }),
     ]);
   });
 });
